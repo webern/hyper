@@ -69,7 +69,7 @@ impl Write for Duplex {
         let mut inner = self.inner.lock().unwrap();
         let ret = inner.write.write(buf);
         if let Some(task) = inner.handle_read_task.take() {
-            trace!("waking DuplexHandle read");
+            println!("waking DuplexHandle read");
             task.notify();
         }
         ret
@@ -110,7 +110,7 @@ impl DuplexHandle {
         let mut inner = self.inner.lock().unwrap();
         assert!(buf.len() >= inner.write.inner.len());
         if inner.write.inner.is_empty() {
-            trace!("DuplexHandle read parking");
+            println!("DuplexHandle read parking");
             inner.handle_read_task = Some(task::current());
             return Ok(Async::NotReady);
         }
@@ -134,7 +134,7 @@ impl DuplexHandle {
 #[cfg(feature = "runtime")]
 impl Drop for DuplexHandle {
     fn drop(&mut self) {
-        trace!("mock duplex handle drop");
+        println!("mock duplex handle drop");
         if !::std::thread::panicking() {
             let mut inner = self.inner.lock().unwrap();
             inner.read.close();
@@ -184,7 +184,7 @@ impl MockConnector {
         let (duplex, handle) = Duplex::channel();
 
         let fut = Box::new(fut.then(move |_| {
-            trace!("MockConnector mocked fut ready");
+            println!("MockConnector mocked fut ready");
             Ok((duplex, connected))
         }));
         self.mocks.lock().unwrap().0.entry(key)
@@ -202,7 +202,7 @@ impl Connect for MockConnector {
     type Future = BoxedConnectFut;
 
     fn connect(&self, dst: Destination) -> Self::Future {
-        trace!("mock connect: {:?}", dst);
+        println!("mock connect: {:?}", dst);
         let key = format!("{}://{}{}", dst.scheme(), dst.host(), if let Some(port) = dst.port() {
             format!(":{}", port)
         } else {

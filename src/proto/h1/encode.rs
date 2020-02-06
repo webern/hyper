@@ -100,14 +100,14 @@ impl Encoder {
 
         let kind = match self.kind {
             Kind::Chunked => {
-                trace!("encoding chunked {}B", len);
+                println!("encoding chunked {}B", len);
                 let buf = ChunkSize::new(len)
                     .chain(msg)
                     .chain(b"\r\n" as &'static [u8]);
                 BufKind::Chunked(buf)
             }
             Kind::Length(ref mut remaining) => {
-                trace!("sized write, len = {}", len);
+                println!("sized write, len = {}", len);
                 if len as u64 > *remaining {
                     let limit = *remaining as usize;
                     *remaining = 0;
@@ -118,7 +118,7 @@ impl Encoder {
                 }
             }
             Kind::CloseDelimited => {
-                trace!("close delimited write {}B", len);
+                println!("close delimited write {}B", len);
                 BufKind::Exact(msg)
             }
         };
@@ -134,7 +134,7 @@ impl Encoder {
 
         match self.kind {
             Kind::Chunked => {
-                trace!("encoding chunked {}B", len);
+                println!("encoding chunked {}B", len);
                 let buf = ChunkSize::new(len)
                     .chain(msg)
                     .chain(b"\r\n0\r\n\r\n" as &'static [u8]);
@@ -144,7 +144,7 @@ impl Encoder {
             Kind::Length(remaining) => {
                 use std::cmp::Ordering;
 
-                trace!("sized write, len = {}", len);
+                println!("sized write, len = {}", len);
                 match (len as u64).cmp(&remaining) {
                     Ordering::Equal => {
                         dst.buffer(msg);
@@ -161,7 +161,7 @@ impl Encoder {
                 }
             }
             Kind::CloseDelimited => {
-                trace!("close delimited write {}B", len);
+                println!("close delimited write {}B", len);
                 dst.buffer(msg);
                 false
             }
@@ -189,7 +189,7 @@ impl Encoder {
         match self.kind {
             Kind::Chunked => {
                 let len = msg.remaining();
-                trace!("encoding chunked {}B", len);
+                println!("encoding chunked {}B", len);
                 let buf = ChunkSize::new(len)
                     .chain(msg)
                     .chain(b"\r\n0\r\n\r\n" as &'static [u8]);

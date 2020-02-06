@@ -256,7 +256,7 @@ where
     R: Resolve,
 {
     async fn call_async(&mut self, dst: Uri) -> Result<TcpStream, ConnectError> {
-        trace!(
+        println!(
             "Http::connect; scheme={:?}, host={:?}, port={:?}",
             dst.scheme(),
             dst.host(),
@@ -529,14 +529,14 @@ impl ConnectingTcpRemote {
     ) -> io::Result<TcpStream> {
         let mut err = None;
         for addr in &mut self.addrs {
-            debug!("connecting to {}", addr);
+            println!("connecting to {}", addr);
             match connect(&addr, local_addr, reuse_address, self.connect_timeout)?.await {
                 Ok(tcp) => {
-                    debug!("connected to {}", addr);
+                    println!("connected to {}", addr);
                     return Ok(tcp);
                 }
                 Err(e) => {
-                    trace!("connect error for {}: {:?}", addr, e);
+                    println!("connect error for {}: {:?}", addr, e);
                     err = Some(e);
                 }
             }

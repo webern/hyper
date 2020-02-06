@@ -70,7 +70,7 @@ where
                         signal,
                     } => match signal.poll(cx) {
                         Poll::Ready(()) => {
-                            debug!("signal received, starting graceful shutdown");
+                            println!("signal received, starting graceful shutdown");
                             let sig = drain.take().expect("drain channel").0;
                             State::Draining(sig.drain())
                         }

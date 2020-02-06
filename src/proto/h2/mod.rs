@@ -139,7 +139,7 @@ where
                     .poll_reset(cx)
                     .map_err(crate::Error::new_body_write)?
                 {
-                    debug!("stream received RST_STREAM: {:?}", reason);
+                    println!("stream received RST_STREAM: {:?}", reason);
                     return Poll::Ready(Err(crate::Error::new_body_write(::h2::Error::from(
                         reason,
                     ))));
@@ -148,7 +148,7 @@ where
                 match ready!(me.stream.as_mut().poll_data(cx)) {
                     Some(Ok(chunk)) => {
                         let is_eos = me.stream.is_end_stream();
-                        trace!(
+                        println!(
                             "send body chunk: {} bytes, eos={}",
                             chunk.remaining(),
                             is_eos,
@@ -181,7 +181,7 @@ where
                     .poll_reset(cx)
                     .map_err(crate::Error::new_body_write)?
                 {
-                    debug!("stream received RST_STREAM: {:?}", reason);
+                    println!("stream received RST_STREAM: {:?}", reason);
                     return Poll::Ready(Err(crate::Error::new_body_write(::h2::Error::from(
                         reason,
                     ))));
@@ -218,13 +218,13 @@ impl<B: Buf> SendStreamExt for SendStream<SendBuf<B>> {
         E: Into<Box<dyn std::error::Error + Send + Sync>>,
     {
         let err = crate::Error::new_user_body(err);
-        debug!("send body user stream error: {}", err);
+        println!("send body user stream error: {}", err);
         self.send_reset(err.h2_reason());
         err
     }
 
     fn send_eos_frame(&mut self) -> crate::Result<()> {
-        trace!("send body eos");
+        println!("send body eos");
         self.send_data(SendBuf(None), true)
             .map_err(crate::Error::new_body_write)
     }

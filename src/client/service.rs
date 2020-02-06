@@ -67,7 +67,7 @@ where
                     Ok((sr, conn)) => {
                         builder.exec.execute(async move {
                             if let Err(e) = conn.await {
-                                debug!("connection error: {:?}", e);
+                                println!("connection error: {:?}", e);
                             }
                         });
                         Ok(sr)

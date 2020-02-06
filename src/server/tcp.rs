@@ -106,11 +106,11 @@ impl AddrIncoming {
                 Poll::Ready(Ok((socket, addr))) => {
                     if let Some(dur) = self.tcp_keepalive_timeout {
                         if let Err(e) = socket.set_keepalive(Some(dur)) {
-                            trace!("error trying to set TCP keepalive: {}", e);
+                            println!("error trying to set TCP keepalive: {}", e);
                         }
                     }
                     if let Err(e) = socket.set_nodelay(self.tcp_nodelay) {
-                        trace!("error trying to set TCP nodelay: {}", e);
+                        println!("error trying to set TCP nodelay: {}", e);
                     }
                     return Poll::Ready(Ok(AddrStream::new(socket, addr)));
                 }
@@ -119,12 +119,12 @@ impl AddrIncoming {
                     // Connection errors can be ignored directly, continue by
                     // accepting the next request.
                     if is_connection_error(&e) {
-                        debug!("accepted connection already errored: {}", e);
+                        println!("accepted connection already errored: {}", e);
                         continue;
                     }
 
                     if self.sleep_on_errors {
-                        error!("accept error: {}", e);
+                        println!("accept error: {}", e);
 
                         // Sleep 1s.
                         let mut timeout = tokio::time::delay_for(Duration::from_secs(1));

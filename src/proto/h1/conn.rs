@@ -134,7 +134,7 @@ where
         cx: &mut task::Context<'_>,
     ) -> Poll<Option<crate::Result<(MessageHead<T::Incoming>, DecodedLength, Wants)>>> {
         debug_assert!(self.can_read_head());
-        trace!("Conn::read_head");
+        println!("Conn::read_head");
 
         let msg = match ready!(self.io.parse::<T>(
             cx,
@@ -150,7 +150,7 @@ where
         // Note: don't deconstruct `msg` into local variables, it appears
         // the optimizer doesn't remove the extra copies.
 
-        debug!("incoming body is {}", msg.decode);
+        println!("incoming body is {}", msg.decode);
 
         self.state.busy();
         self.state.keep_alive &= msg.keep_alive;
@@ -164,7 +164,7 @@ where
 
         if msg.decode == DecodedLength::ZERO {
             if msg.expect_continue {
-                debug!("ignoring expect-continue since body is empty");
+                println!("ignoring expect-continue since body is empty");
             }
             self.state.reading = Reading::KeepAlive;
             if !T::should_read_first() {
@@ -190,7 +190,7 @@ where
         let was_mid_parse = e.is_parse() || !self.io.read_buf().is_empty();
         if was_mid_parse || must_error {
             // We check if the buf contains the h2 Preface
-            debug!(
+            println!(
                 "parse error ({}) with {} bytes",
                 e,
                 self.io.read_buf().len()
@@ -200,7 +200,7 @@ where
                 Err(e) => Poll::Ready(Some(Err(e))),
             }
         } else {
-            debug!("read eof");
+            println!("read eof");
             self.close_write();
             Poll::Ready(None)
         }
@@ -217,7 +217,7 @@ where
                 match decoder.decode(cx, &mut self.io) {
                     Poll::Ready(Ok(slice)) => {
                         let (reading, chunk) = if decoder.is_eof() {
-                            debug!("incoming body completed");
+                            println!("incoming body completed");
                             (
                                 Reading::KeepAlive,
                                 if !slice.is_empty() {
@@ -227,7 +227,7 @@ where
                                 },
                             )
                         } else if slice.is_empty() {
-                            error!("incoming body unexpectedly ended");
+                            println!("incoming body unexpectedly ended");
                             // This should be unreachable, since all 3 decoders
                             // either set eof=true or return an Err when reading
                             // an empty slice...
@@ -239,7 +239,7 @@ where
                     }
                     Poll::Pending => return Poll::Pending,
                     Poll::Ready(Err(e)) => {
-                        debug!("incoming body decode error: {}", e);
+                        println!("incoming body decode error: {}", e);
                         (Reading::Closed, Poll::Ready(Some(Err(e))))
                     }
                 }
@@ -247,7 +247,7 @@ where
             Reading::Continue(ref decoder) => {
                 // Write the 100 Continue if not already responded...
                 if let Writing::Init = self.state.writing {
-                    trace!("automatically sending 100 Continue");
+                    println!("automatically sending 100 Continue");
                     let cont = b"HTTP/1.1 100 Continue\r\n\r\n";
                     self.io.headers_buf().extend_from_slice(cont);
                 }
@@ -299,7 +299,7 @@ where
         debug_assert!(T::is_client());
 
         if !self.io.read_buf().is_empty() {
-            debug!("received an unexpected {} bytes", self.io.read_buf().len());
+            println!("received an unexpected {} bytes", self.io.read_buf().len());
             return Poll::Ready(Err(crate::Error::new_unexpected_message()));
         }
 
@@ -307,10 +307,10 @@ where
 
         if num_read == 0 {
             let ret = if self.should_error_on_eof() {
-                trace!("found unexpected EOF on busy connection: {:?}", self.state);
+                println!("found unexpected EOF on busy connection: {:?}", self.state);
                 Poll::Ready(Err(crate::Error::new_incomplete()))
             } else {
-                trace!("found EOF on idle connection, closing");
+                println!("found EOF on idle connection, closing");
                 Poll::Ready(Ok(()))
             };
 
@@ -319,7 +319,7 @@ where
             return ret;
         }
 
-        debug!(
+        println!(
             "received unexpected {} bytes on an idle connection",
             num_read
         );
@@ -337,7 +337,7 @@ where
         let num_read = ready!(self.force_io_read(cx)).map_err(crate::Error::new_io)?;
 
         if num_read == 0 {
-            trace!("found unexpected EOF on busy connection: {:?}", self.state);
+            println!("found unexpected EOF on busy connection: {:?}", self.state);
             self.state.close_read();
             Poll::Ready(Err(crate::Error::new_incomplete()))
         } else {
@@ -350,7 +350,7 @@ where
 
         let result = ready!(self.io.poll_read_from_io(cx));
         Poll::Ready(result.map_err(|e| {
-            trace!("force_io_read; io error = {:?}", e);
+            println!("force_io_read; io error = {:?}", e);
             self.state.close();
             e
         }))
@@ -379,7 +379,7 @@ where
                 match self.io.poll_read_from_io(cx) {
                     Poll::Ready(Ok(n)) => {
                         if n == 0 {
-                            trace!("maybe_notify; read eof");
+                            println!("maybe_notify; read eof");
                             if self.state.is_idle() {
                                 self.state.close();
                             } else {
@@ -389,11 +389,11 @@ where
                         }
                     }
                     Poll::Pending => {
-                        trace!("maybe_notify; read_from_io blocked");
+                        println!("maybe_notify; read_from_io blocked");
                         return;
                     }
                     Poll::Ready(Err(e)) => {
-                        trace!("maybe_notify; read_from_io error: {}", e);
+                        println!("maybe_notify; read_from_io error: {}", e);
                         self.state.close();
                         self.state.error = Some(crate::Error::new_io(e));
                     }
@@ -638,18 +638,18 @@ where
     pub fn poll_flush(&mut self, cx: &mut task::Context<'_>) -> Poll<io::Result<()>> {
         ready!(Pin::new(&mut self.io).poll_flush(cx))?;
         self.try_keep_alive(cx);
-        trace!("flushed({}): {:?}", T::LOG, self.state);
+        println!("flushed({}): {:?}", T::LOG, self.state);
         Poll::Ready(Ok(()))
     }
 
     pub fn poll_shutdown(&mut self, cx: &mut task::Context<'_>) -> Poll<io::Result<()>> {
         match ready!(Pin::new(self.io.io_mut()).poll_shutdown(cx)) {
             Ok(()) => {
-                trace!("shut down IO complete");
+                println!("shut down IO complete");
                 Poll::Ready(Ok(()))
             }
             Err(e) => {
-                debug!("error shutting down IO: {}", e);
+                println!("error shutting down IO: {}", e);
                 Poll::Ready(Err(e))
             }
         }
@@ -665,10 +665,10 @@ where
 
     pub fn disable_keep_alive(&mut self) {
         if self.state.is_idle() {
-            trace!("disable_keep_alive; closing idle connection");
+            println!("disable_keep_alive; closing idle connection");
             self.state.close();
         } else {
-            trace!("disable_keep_alive; in-progress connection");
+            println!("disable_keep_alive; in-progress connection");
             self.state.disable_keep_alive();
         }
     }
@@ -682,7 +682,7 @@ where
     }
 
     pub(super) fn on_upgrade(&mut self) -> crate::upgrade::OnUpgrade {
-        trace!("{}: prepare possible HTTP upgrade", T::LOG);
+        println!("{}: prepare possible HTTP upgrade", T::LOG);
         self.state.prepare_upgrade()
     }
 }
@@ -780,7 +780,7 @@ impl fmt::Debug for Writing {
 impl std::ops::BitAndAssign<bool> for KA {
     fn bitand_assign(&mut self, enabled: bool) {
         if !enabled {
-            trace!("remote disabling keep-alive");
+            println!("remote disabling keep-alive");
             *self = KA::Disabled;
         }
     }
@@ -819,20 +819,20 @@ impl KA {
 
 impl State {
     fn close(&mut self) {
-        trace!("State::close()");
+        println!("State::close()");
         self.reading = Reading::Closed;
         self.writing = Writing::Closed;
         self.keep_alive.disable();
     }
 
     fn close_read(&mut self) {
-        trace!("State::close_read()");
+        println!("State::close_read()");
         self.reading = Reading::Closed;
         self.keep_alive.disable();
     }
 
     fn close_write(&mut self) {
-        trace!("State::close_write()");
+        println!("State::close_write()");
         self.writing = Writing::Closed;
         self.keep_alive.disable();
     }
@@ -851,7 +851,7 @@ impl State {
                 if let KA::Busy = self.keep_alive.status() {
                     self.idle::<T>();
                 } else {
-                    trace!(
+                    println!(
                         "try_keep_alive({}): could keep-alive, but status = {:?}",
                         T::LOG,
                         self.keep_alive

@@ -235,7 +235,7 @@ impl<T, U> Callback<T, U> {
                 Poll::Pending => {
                     // check if the callback is canceled
                     ready!(cb.as_mut().unwrap().poll_canceled(cx));
-                    trace!("send_when canceled");
+                    println!("send_when canceled");
                     Poll::Ready(())
                 }
                 Poll::Ready(Err(err)) => {

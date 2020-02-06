@@ -62,7 +62,7 @@ where
     }
 
     pub fn graceful_shutdown(&mut self) {
-        trace!("graceful_shutdown");
+        println!("graceful_shutdown");
         match self.state {
             State::Handshaking(..) => {
                 // fall-through, to replace state with Closed
@@ -142,20 +142,20 @@ where
                         // use `poll_closed` instead of `poll_accept`,
                         // in order to avoid accepting a request.
                         ready!(self.conn.poll_closed(cx).map_err(crate::Error::new_h2))?;
-                        trace!("incoming connection complete");
+                        println!("incoming connection complete");
                         return Poll::Ready(Ok(()));
                     }
                     Poll::Ready(Err(err)) => {
                         let err = crate::Error::new_user_service(err);
-                        debug!("service closed: {}", err);
+                        println!("service closed: {}", err);
 
                         let reason = err.h2_reason();
                         if reason == Reason::NO_ERROR {
                             // NO_ERROR is only used for graceful shutdowns...
-                            trace!("interpretting NO_ERROR user error as graceful_shutdown");
+                            println!("interpretting NO_ERROR user error as graceful_shutdown");
                             self.conn.graceful_shutdown();
                         } else {
-                            trace!("abruptly shutting down with {:?}", reason);
+                            println!("abruptly shutting down with {:?}", reason);
                             self.conn.abrupt_shutdown(reason);
                         }
                         self.closing = Some(err);
@@ -166,7 +166,7 @@ where
                 // When the service is ready, accepts an incoming request.
                 match ready!(self.conn.poll_accept(cx)) {
                     Some(Ok((req, respond))) => {
-                        trace!("incoming request");
+                        println!("incoming request");
                         let content_length = decode_content_length(req.headers());
                         let req = req.map(|stream| crate::Body::h2(stream, content_length));
                         let fut = H2Stream::new(service.call(req), respond);
@@ -177,7 +177,7 @@ where
                     }
                     None => {
                         // no more incoming streams...
-                        trace!("incoming connection complete");
+                        println!("incoming connection complete");
                         return Poll::Ready(Ok(()));
                     }
                 }
@@ -232,7 +232,7 @@ macro_rules! reply {
         match $me.reply.send_response($res, $eos) {
             Ok(tx) => tx,
             Err(e) => {
-                debug!("send response error: {}", e);
+                println!("send response error: {}", e);
                 $me.reply.send_reset(Reason::INTERNAL_ERROR);
                 return Poll::Ready(Err(crate::Error::new_h2(e)));
             }
@@ -261,7 +261,7 @@ where
                             if let Poll::Ready(reason) =
                                 me.reply.poll_reset(cx).map_err(crate::Error::new_h2)?
                             {
-                                debug!("stream received RST_STREAM: {:?}", reason);
+                                println!("stream received RST_STREAM: {:?}", reason);
                                 return Poll::Ready(Err(crate::Error::new_h2(reason.into())));
                             }
                             return Poll::Pending;
@@ -316,7 +316,7 @@ where
     fn poll(self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
         self.poll2(cx).map(|res| {
             if let Err(e) = res {
-                debug!("stream error: {}", e);
+                println!("stream error: {}", e);
             }
         })
     }

@@ -263,7 +263,7 @@ where
                         return Poll::Ready(Err(reason));
                     }
 
-                    trace!(
+                    println!(
                         "unstarted request canceled, trying again (reason={:?})",
                         reason
                     );
@@ -308,7 +308,7 @@ where
                     origin_form(req.uri_mut());
                 };
             } else if req.method() == Method::CONNECT {
-                debug!("client does not support CONNECT requests over HTTP2");
+                println!("client does not support CONNECT requests over HTTP2");
                 return Either::Left(future::err(ClientError::Normal(
                     crate::Error::new_user_unsupported_request_method(),
                 )));
@@ -411,7 +411,7 @@ where
                 if connecting.started() {
                     let bg = connecting
                         .map_err(|err| {
-                            trace!("background connect error: {}", err);
+                            println!("background connect error: {}", err);
                         })
                         .map(|_pooled| {
                             // dropping here should just place it in
@@ -487,7 +487,7 @@ where
                         let connecting = if connected.alpn == Alpn::H2 && !is_ver_h2 {
                             match connecting.alpn_h2(&pool) {
                                 Some(lock) => {
-                                    trace!("ALPN negotiated h2, updating pool");
+                                    println!("ALPN negotiated h2, updating pool");
                                     lock
                                 }
                                 None => {
@@ -507,11 +507,11 @@ where
                                 .http2_only(is_h2)
                                 .handshake(io)
                                 .and_then(move |(tx, conn)| {
-                                    trace!(
+                                    println!(
                                         "handshake complete, spawning background dispatcher task"
                                     );
                                     executor.execute(
-                                        conn.map_err(|e| debug!("client connection error: {}", e))
+                                        conn.map_err(|e| println!("client connection error: {}", e))
                                             .map(|_| ()),
                                     );
 
@@ -808,7 +808,7 @@ fn extract_domain(uri: &mut Uri, is_http_connect: bool) -> crate::Result<PoolKey
             Ok((scheme, auth.clone()))
         }
         _ => {
-            debug!("Client requires absolute-form URIs, received: {:?}", uri);
+            println!("Client requires absolute-form URIs, received: {:?}", uri);
             Err(crate::Error::new_user_absolute_uri_required())
         }
     }

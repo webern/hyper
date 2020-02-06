@@ -550,7 +550,7 @@ where
     }
 
     fn upgrade_h2(&mut self) {
-        trace!("Trying to upgrade connection to h2");
+        println!("Trying to upgrade connection to h2");
         let conn = self.conn.take();
 
         let (io, read_buf, dispatch) = match conn.unwrap() {
@@ -665,7 +665,7 @@ where
         match ready!(me.make_service.poll_ready_ref(cx)) {
             Ok(()) => (),
             Err(e) => {
-                trace!("make_service closed");
+                println!("make_service closed");
                 return Poll::Ready(Some(Err(crate::Error::new_user_make_service(e))));
             }
         }
@@ -878,7 +878,7 @@ pub(crate) mod spawn_all {
                                 Ok(conn) => conn,
                                 Err(err) => {
                                     let err = crate::Error::new_user_make_service(err);
-                                    debug!("connecting error: {}", err);
+                                    println!("connecting error: {}", err);
                                     return Poll::Ready(());
                                 }
                             };
@@ -888,7 +888,7 @@ pub(crate) mod spawn_all {
                         State::Connected(future) => {
                             return future.poll(cx).map(|res| {
                                 if let Err(err) = res {
-                                    debug!("connection error: {}", err);
+                                    println!("connection error: {}", err);
                                 }
                             });
                         }

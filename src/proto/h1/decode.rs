@@ -103,7 +103,7 @@ impl Decoder {
         cx: &mut task::Context<'_>,
         body: &mut R,
     ) -> Poll<Result<Bytes, io::Error>> {
-        trace!("decode; state={:?}", self.kind);
+        println!("decode; state={:?}", self.kind);
         match self.kind {
             Length(ref mut remaining) => {
                 if *remaining == 0 {
@@ -131,7 +131,7 @@ impl Decoder {
                     // advances the chunked state
                     *state = ready!(state.step(cx, body, size, &mut buf))?;
                     if *state == ChunkedState::End {
-                        trace!("end of chunked");
+                        println!("end of chunked");
                         return Poll::Ready(Ok(Bytes::new()));
                     }
                     if let Some(buf) = buf {
@@ -206,7 +206,7 @@ impl ChunkedState {
         rdr: &mut R,
         size: &mut u64,
     ) -> Poll<Result<ChunkedState, io::Error>> {
-        trace!("Read chunk hex size");
+        println!("Read chunk hex size");
         let radix = 16;
         match byte!(rdr, cx) {
             b @ b'0'..=b'9' => {
@@ -237,7 +237,7 @@ impl ChunkedState {
         cx: &mut task::Context<'_>,
         rdr: &mut R,
     ) -> Poll<Result<ChunkedState, io::Error>> {
-        trace!("read_size_lws");
+        println!("read_size_lws");
         match byte!(rdr, cx) {
             // LWS can follow the chunk size, but no more digits can come
             b'\t' | b' ' => Poll::Ready(Ok(ChunkedState::SizeLws)),
@@ -253,7 +253,7 @@ impl ChunkedState {
         cx: &mut task::Context<'_>,
         rdr: &mut R,
     ) -> Poll<Result<ChunkedState, io::Error>> {
-        trace!("read_extension");
+        println!("read_extension");
         match byte!(rdr, cx) {
             b'\r' => Poll::Ready(Ok(ChunkedState::SizeLf)),
             _ => Poll::Ready(Ok(ChunkedState::Extension)), // no supported extensions
@@ -264,13 +264,13 @@ impl ChunkedState {
         rdr: &mut R,
         size: u64,
     ) -> Poll<Result<ChunkedState, io::Error>> {
-        trace!("Chunk size is {:?}", size);
+        println!("Chunk size is {:?}", size);
         match byte!(rdr, cx) {
             b'\n' => {
                 if size == 0 {
                     Poll::Ready(Ok(ChunkedState::EndCr))
                 } else {
-                    debug!("incoming chunked header: {0:#X} ({0} bytes)", size);
+                    println!("incoming chunked header: {0:#X} ({0} bytes)", size);
                     Poll::Ready(Ok(ChunkedState::Body))
                 }
             }
@@ -287,7 +287,7 @@ impl ChunkedState {
         rem: &mut u64,
         buf: &mut Option<Bytes>,
     ) -> Poll<Result<ChunkedState, io::Error>> {
-        trace!("Chunked read, remaining={:?}", rem);
+        println!("Chunked read, remaining={:?}", rem);
 
         // cap remaining bytes at the max capacity of usize
         let rem_cap = match *rem {

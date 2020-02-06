@@ -164,7 +164,7 @@ where
             }
         }
 
-        trace!("poll_loop yielding (self = {:p})", self);
+        println!("poll_loop yielding (self = {:p})", self);
 
         task::yield_now(cx).map(|never| match never {})
     }
@@ -186,7 +186,7 @@ where
                         Poll::Ready(Err(_canceled)) => {
                             // user doesn't care about the body
                             // so we should stop reading
-                            trace!("body receiver dropped before eof, closing");
+                            println!("body receiver dropped before eof, closing");
                             self.conn.close_read();
                             return Poll::Ready(Ok(()));
                         }
@@ -198,7 +198,7 @@ where
                             }
                             Err(_canceled) => {
                                 if self.conn.can_read_body() {
-                                    trace!("body receiver dropped before eof, closing");
+                                    println!("body receiver dropped before eof, closing");
                                     self.conn.close_read();
                                 }
                             }
@@ -228,7 +228,7 @@ where
         match ready!(self.dispatch.poll_ready(cx)) {
             Ok(()) => (),
             Err(()) => {
-                trace!("dispatch no longer receiving messages");
+                println!("dispatch no longer receiving messages");
                 self.close();
                 return Poll::Ready(Ok(()));
             }
@@ -251,7 +251,7 @@ where
                 Poll::Ready(Ok(()))
             }
             Some(Err(err)) => {
-                debug!("read_head error: {}", err);
+                println!("read_head error: {}", err);
                 self.dispatch.recv_msg(Err(err))?;
                 // if here, the dispatcher gave the user the error
                 // somewhere else. we still need to shutdown, but
@@ -318,7 +318,7 @@ where
                 {
                     debug_assert!(!*clear_body, "opt guard defaults to keeping body");
                     if !self.conn.can_write_body() {
-                        trace!(
+                        println!(
                             "no more write body allowed, user body is_end_stream = {}",
                             body.is_end_stream(),
                         );
@@ -336,14 +336,14 @@ where
                         if eos {
                             *clear_body = true;
                             if chunk.remaining() == 0 {
-                                trace!("discarding empty chunk");
+                                println!("discarding empty chunk");
                                 self.conn.end_body();
                             } else {
                                 self.conn.write_body_and_end(chunk);
                             }
                         } else {
                             if chunk.remaining() == 0 {
-                                trace!("discarding empty chunk");
+                                println!("discarding empty chunk");
                                 continue;
                             }
                             self.conn.write_body(chunk);
@@ -361,7 +361,7 @@ where
 
     fn poll_flush(&mut self, cx: &mut task::Context<'_>) -> Poll<crate::Result<()>> {
         self.conn.poll_flush(cx).map_err(|err| {
-            debug!("error writing: {}", err);
+            println!("error writing: {}", err);
             crate::Error::new_body_write(err)
         })
     }
@@ -506,7 +506,7 @@ where
         } else {
             self.service.poll_ready(cx).map_err(|_e| {
                 // FIXME: return error value.
-                trace!("service closed");
+                println!("service closed");
             })
         }
     }
@@ -547,7 +547,7 @@ where
                 // check that future hasn't been canceled already
                 match cb.poll_canceled(cx) {
                     Poll::Ready(()) => {
-                        trace!("request canceled");
+                        println!("request canceled");
                         Poll::Ready(None)
                     }
                     Poll::Pending => {
@@ -564,7 +564,7 @@ where
             }
             Poll::Ready(None) => {
                 // user has dropped sender handle
-                trace!("client tx closed");
+                println!("client tx closed");
                 self.rx_closed = true;
                 Poll::Ready(None)
             }
@@ -596,7 +596,7 @@ where
                 } else if !self.rx_closed {
                     self.rx.close();
                     if let Some((req, cb)) = self.rx.try_recv() {
-                        trace!("canceling queued request with connection error: {}", err);
+                        println!("canceling queued request with connection error: {}", err);
                         // in this case, the message was never even started, so it's safe to tell
                         // the user that the request was completely canceled
                         cb.send(Err((crate::Error::new_canceled().with(err), Some(req))));
@@ -615,7 +615,7 @@ where
         match self.callback {
             Some(ref mut cb) => match cb.poll_canceled(cx) {
                 Poll::Ready(()) => {
-                    trace!("callback receiver has dropped");
+                    println!("callback receiver has dropped");
                     Poll::Ready(Err(()))
                 }
                 Poll::Pending => Poll::Ready(Ok(())),

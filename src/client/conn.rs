@@ -210,7 +210,7 @@ where
         let inner = match self.dispatch.send(req) {
             Ok(rx) => ResponseFutureState::Waiting(rx),
             Err(_req) => {
-                debug!("connection was not ready");
+                println!("connection was not ready");
                 let err = crate::Error::new_canceled().with("connection was not ready");
                 ResponseFutureState::Error(Some(err))
             }
@@ -238,7 +238,7 @@ where
                 }))
             }
             Err(req) => {
-                debug!("connection was not ready");
+                println!("connection was not ready");
                 let err = crate::Error::new_canceled().with("connection was not ready");
                 Either::Right(future::err((err, Some(req))))
             }
@@ -304,7 +304,7 @@ where
                 }))
             }
             Err(req) => {
-                debug!("connection was not ready");
+                println!("connection was not ready");
                 let err = crate::Error::new_canceled().with("connection was not ready");
                 Either::Right(future::err((err, Some(req))))
             }
@@ -523,7 +523,7 @@ impl Builder {
         let opts = self.clone();
 
         async move {
-            trace!("client handshake HTTP/{}", if opts.http2 { 2 } else { 1 });
+            println!("client handshake HTTP/{}", if opts.http2 { 2 } else { 1 });
 
             let (tx, rx) = dispatch::channel();
             let proto = if !opts.http2 {

@@ -49,7 +49,7 @@ where
         }
     });
 
-    let conn = conn.map_err(|e| debug!("connection error: {}", e));
+    let conn = conn.map_err(|e| println!("connection error: {}", e));
 
     let conn_task = async move {
         match future::select(conn, conn_drop_rx).await {
@@ -60,7 +60,7 @@ where
                 // mpsc has been dropped, hopefully polling
                 // the connection some more should start shutdown
                 // and then close
-                trace!("send_request dropped, starting conn shutdown");
+                println!("send_request dropped, starting conn shutdown");
                 drop(cancel_tx);
                 let _ = conn.await;
             }
@@ -101,7 +101,7 @@ where
                 Ok(()) => (),
                 Err(err) => {
                     return if err.reason() == Some(::h2::Reason::NO_ERROR) {
-                        trace!("connection gracefully shutdown");
+                        println!("connection gracefully shutdown");
                         Poll::Ready(Ok(Dispatched::Shutdown))
                     } else {
                         Poll::Ready(Err(crate::Error::new_h2(err)))
@@ -113,7 +113,7 @@ where
                 Poll::Ready(Some((req, cb))) => {
                     // check that future hasn't been canceled already
                     if cb.is_canceled() {
-                        trace!("request callback is canceled");
+                        println!("request callback is canceled");
                         continue;
                     }
                     let (head, body) = req.into_parts();
@@ -128,7 +128,7 @@ where
                     let (fut, body_tx) = match self.h2_tx.send_request(req, eos) {
                         Ok(ok) => ok,
                         Err(err) => {
-                            debug!("client send request error: {}", err);
+                            println!("client send request error: {}", err);
                             cb.send(Err((crate::Error::new_h2(err), None)));
                             continue;
                         }
@@ -137,7 +137,7 @@ where
                     if !eos {
                         let mut pipe = Box::pin(PipeToSendStream::new(body, body_tx)).map(|res| {
                             if let Err(e) = res {
-                                debug!("client request body error: {}", e);
+                                println!("client request body error: {}", e);
                             }
                         });
 
@@ -163,7 +163,7 @@ where
                             Ok(res)
                         }
                         Err(err) => {
-                            debug!("client response error: {}", err);
+                            println!("client response error: {}", err);
                             Err((crate::Error::new_h2(err), None))
                         }
                     });
@@ -172,14 +172,14 @@ where
                 }
 
                 Poll::Ready(None) => {
-                    trace!("client::dispatch::Sender dropped");
+                    println!("client::dispatch::Sender dropped");
                     return Poll::Ready(Ok(Dispatched::Shutdown));
                 }
 
                 Poll::Pending => match ready!(Pin::new(&mut self.conn_eof).poll(cx)) {
                     Ok(never) => match never {},
                     Err(_conn_is_eof) => {
-                        trace!("connection task is closed, closing dispatch task");
+                        println!("connection task is closed, closing dispatch task");
                         return Poll::Ready(Ok(Dispatched::Shutdown));
                     }
                 },

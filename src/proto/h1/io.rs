@@ -157,19 +157,19 @@ where
                 },
             )? {
                 Some(msg) => {
-                    debug!("parsed {} headers", msg.head.headers.len());
+                    println!("parsed {} headers", msg.head.headers.len());
                     return Poll::Ready(Ok(msg));
                 }
                 None => {
                     let max = self.read_buf_strategy.max();
                     if self.read_buf.len() >= max {
-                        debug!("max_buf_size ({}) reached, closing", max);
+                        println!("max_buf_size ({}) reached, closing", max);
                         return Poll::Ready(Err(crate::Error::new_too_large()));
                     }
                 }
             }
             if ready!(self.poll_read_from_io(cx)).map_err(crate::Error::new_io)? == 0 {
-                trace!("parse eof");
+                println!("parse eof");
                 return Poll::Ready(Err(crate::Error::new_incomplete()));
             }
         }
@@ -183,7 +183,7 @@ where
         }
         match Pin::new(&mut self.io).poll_read_buf(cx, &mut self.read_buf) {
             Poll::Ready(Ok(n)) => {
-                debug!("read {} bytes", n);
+                println!("read {} bytes", n);
                 self.read_buf_strategy.record(n);
                 Poll::Ready(Ok(n))
             }
@@ -219,11 +219,11 @@ where
             loop {
                 let n =
                     ready!(Pin::new(&mut self.io).poll_write_buf(cx, &mut self.write_buf.auto()))?;
-                debug!("flushed {} bytes", n);
+                println!("flushed {} bytes", n);
                 if self.write_buf.remaining() == 0 {
                     break;
                 } else if n == 0 {
-                    trace!(
+                    println!(
                         "write returned zero, but {} bytes remaining",
                         self.write_buf.remaining()
                     );
@@ -241,13 +241,13 @@ where
     fn poll_flush_flattened(&mut self, cx: &mut task::Context<'_>) -> Poll<io::Result<()>> {
         loop {
             let n = ready!(Pin::new(&mut self.io).poll_write(cx, self.write_buf.headers.bytes()))?;
-            debug!("flushed {} bytes", n);
+            println!("flushed {} bytes", n);
             self.write_buf.headers.advance(n);
             if self.write_buf.headers.remaining() == 0 {
                 self.write_buf.headers.reset();
                 break;
             } else if n == 0 {
-                trace!(
+                println!(
                     "write returned zero, but {} bytes remaining",
                     self.write_buf.remaining()
                 );
@@ -585,7 +585,7 @@ impl<'a, B: Buf + 'a> Drop for WriteBufAuto<'a, B> {
             if self.bytes_vec_called.get() {
                 self.inner.strategy = WriteStrategy::Queue;
             } else if self.bytes_called.get() {
-                trace!("detected no usage of vectored write, flattening");
+                println!("detected no usage of vectored write, flattening");
                 self.inner.strategy = WriteStrategy::Flatten;
                 self.inner.headers.bytes.put(&mut self.inner.queue);
             }
