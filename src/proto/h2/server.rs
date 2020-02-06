@@ -62,7 +62,7 @@ where
     }
 
     pub fn graceful_shutdown(&mut self) {
-        trace!("graceful_shutdown");
+        println!("graceful_shutdown");
         match self.state {
             State::Handshaking(..) => {
                 // fall-through, to replace state with Closed
@@ -139,20 +139,20 @@ where
                     Ok(Async::NotReady) => {
                         // use `poll_close` instead of `poll`, in order to avoid accepting a request.
                         try_ready!(self.conn.poll_close().map_err(::Error::new_h2));
-                        trace!("incoming connection complete");
+                        println!("incoming connection complete");
                         return Ok(Async::Ready(()));
                     }
                     Err(err) => {
                         let err = ::Error::new_user_service(err);
-                        debug!("service closed: {}", err);
+                        println!("service closed: {}", err);
 
                         let reason = err.h2_reason();
                         if reason == Reason::NO_ERROR {
                             // NO_ERROR is only used for graceful shutdowns...
-                            trace!("interpretting NO_ERROR user error as graceful_shutdown");
+                            println!("interpretting NO_ERROR user error as graceful_shutdown");
                             self.conn.graceful_shutdown();
                         } else {
-                            trace!("abruptly shutting down with {:?}", reason);
+                            println!("abruptly shutting down with {:?}", reason);
                             self.conn.abrupt_shutdown(reason);
                         }
                         self.closing = Some(err);
@@ -162,7 +162,7 @@ where
 
                 // When the service is ready, accepts an incoming request.
                 if let Some((req, respond)) = try_ready!(self.conn.poll().map_err(::Error::new_h2)) {
-                    trace!("incoming request");
+                    println!("incoming request");
                     let content_length = content_length_parse_all(req.headers());
                     let req = req.map(|stream| {
                         ::Body::h2(stream, content_length)
@@ -171,7 +171,7 @@ where
                     exec.execute_h2stream(fut)?;
                 } else {
                     // no more incoming streams...
-                    trace!("incoming connection complete");
+                    println!("incoming connection complete");
                     return Ok(Async::Ready(()))
                 }
             }
@@ -227,7 +227,7 @@ where
                             if let Async::Ready(reason) =
                                 self.reply.poll_reset().map_err(|e| ::Error::new_h2(e))?
                             {
-                                debug!("stream received RST_STREAM: {:?}", reason);
+                                println!("stream received RST_STREAM: {:?}", reason);
                                 return Err(::Error::new_h2(reason.into()));
                             }
                             return Ok(Async::NotReady);
@@ -256,7 +256,7 @@ where
                             match self.reply.send_response(res, $eos) {
                                 Ok(tx) => tx,
                                 Err(e) => {
-                                    debug!("send response error: {}", e);
+                                    println!("send response error: {}", e);
                                     self.reply.send_reset(Reason::INTERNAL_ERROR);
                                     return Err(::Error::new_h2(e));
                                 }
@@ -306,7 +306,7 @@ where
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         self.poll2()
-            .map_err(|e| debug!("stream error: {}", e))
+            .map_err(|e| println!("stream error: {}", e))
     }
 }
 

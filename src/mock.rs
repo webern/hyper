@@ -52,7 +52,7 @@ impl<S: AsRef<[u8]>> PartialEq<S> for MockCursor {
 
 impl Write for MockCursor {
     fn write(&mut self, data: &[u8]) -> io::Result<usize> {
-        trace!("MockCursor::write; len={}", data.len());
+        println!("MockCursor::write; len={}", data.len());
         self.vec.extend(data);
         Ok(data.len())
     }
@@ -65,10 +65,10 @@ impl Write for MockCursor {
 impl Read for MockCursor {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         (&self.vec[self.pos..]).read(buf).map(|n| {
-            trace!("MockCursor::read; len={}", n);
+            println!("MockCursor::read; len={}", n);
             self.pos += n;
             if self.pos == self.vec.len() {
-                trace!("MockCursor::read to end, clearing");
+                println!("MockCursor::read to end, clearing");
                 self.pos = 0;
                 self.vec.clear();
             }
@@ -225,13 +225,13 @@ impl<T: Write> Write for AsyncIo<T> {
         assert!(!self.panic, "AsyncIo::write panic");
         self.num_writes += 1;
         if let Some(err) = self.error.take() {
-            trace!("AsyncIo::write error");
+            println!("AsyncIo::write error");
             Err(err)
         } else if self.bytes_until_block == 0 {
-            trace!("AsyncIo::write would block");
+            println!("AsyncIo::write would block");
             Err(self.would_block())
         } else {
-            trace!("AsyncIo::write; {} bytes", data.len());
+            println!("AsyncIo::write; {} bytes", data.len());
             self.flushed = false;
             let n = cmp::min(self.bytes_until_block, data.len());
             let n = self.inner.write(&data[..n])?;
@@ -360,7 +360,7 @@ impl Write for Duplex {
         let mut inner = self.inner.lock().unwrap();
         let ret = inner.write.write(buf);
         if let Some(task) = inner.handle_read_task.take() {
-            trace!("waking DuplexHandle read");
+            println!("waking DuplexHandle read");
             task.notify();
         }
         ret
@@ -401,7 +401,7 @@ impl DuplexHandle {
         let mut inner = self.inner.lock().unwrap();
         assert!(buf.len() >= inner.write.inner.len());
         if inner.write.inner.is_empty() {
-            trace!("DuplexHandle read parking");
+            println!("DuplexHandle read parking");
             inner.handle_read_task = Some(task::current());
             return Ok(Async::NotReady);
         }
@@ -425,7 +425,7 @@ impl DuplexHandle {
 #[cfg(feature = "runtime")]
 impl Drop for DuplexHandle {
     fn drop(&mut self) {
-        trace!("mock duplex handle drop");
+        println!("mock duplex handle drop");
         if !::std::thread::panicking() {
             let mut inner = self.inner.lock().unwrap();
             inner.read.close();
@@ -475,7 +475,7 @@ impl MockConnector {
         let (duplex, handle) = Duplex::channel();
 
         let fut = Box::new(fut.then(move |_| {
-            trace!("MockConnector mocked fut ready");
+            println!("MockConnector mocked fut ready");
             Ok((duplex, connected))
         }));
         self.mocks.lock().unwrap().0.entry(key)
@@ -493,7 +493,7 @@ impl Connect for MockConnector {
     type Future = BoxedConnectFut;
 
     fn connect(&self, dst: Destination) -> Self::Future {
-        trace!("mock connect: {:?}", dst);
+        println!("mock connect: {:?}", dst);
         let key = format!("{}://{}{}", dst.scheme(), dst.host(), if let Some(port) = dst.port() {
             format!(":{}", port)
         } else {

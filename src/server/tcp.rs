@@ -106,7 +106,7 @@ impl Stream for AddrIncoming {
                 Ok(Async::Ready(())) => {}
                 Ok(Async::NotReady) => return Ok(Async::NotReady),
                 Err(err) => {
-                    error!("sleep timer error: {}", err);
+                    println!("sleep timer error: {}", err);
                 }
             }
         }
@@ -116,11 +116,11 @@ impl Stream for AddrIncoming {
                 Ok(Async::Ready((socket, addr))) => {
                     if let Some(dur) = self.tcp_keepalive_timeout {
                         if let Err(e) = socket.set_keepalive(Some(dur)) {
-                            trace!("error trying to set TCP keepalive: {}", e);
+                            println!("error trying to set TCP keepalive: {}", e);
                         }
                     }
                     if let Err(e) = socket.set_nodelay(self.tcp_nodelay) {
-                        trace!("error trying to set TCP nodelay: {}", e);
+                        println!("error trying to set TCP nodelay: {}", e);
                     }
                     return Ok(Async::Ready(Some(AddrStream::new(socket, addr))));
                 },
@@ -129,7 +129,7 @@ impl Stream for AddrIncoming {
                     // Connection errors can be ignored directly, continue by
                     // accepting the next request.
                     if is_connection_error(&e) {
-                        debug!("accepted connection already errored: {}", e);
+                        println!("accepted connection already errored: {}", e);
                         continue;
                     }
 
@@ -141,16 +141,16 @@ impl Stream for AddrIncoming {
                         match timeout.poll() {
                             Ok(Async::Ready(())) => {
                                 // Wow, it's been a second already? Ok then...
-                                error!("accept error: {}", e);
+                                println!("accept error: {}", e);
                                 continue
                             },
                             Ok(Async::NotReady) => {
-                                error!("accept error: {}", e);
+                                println!("accept error: {}", e);
                                 self.timeout = Some(timeout);
                                 return Ok(Async::NotReady);
                             },
                             Err(timer_err) => {
-                                error!("couldn't sleep on error, timer error: {}", timer_err);
+                                println!("couldn't sleep on error, timer error: {}", timer_err);
                                 return Err(e);
                             }
                         }

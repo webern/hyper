@@ -80,9 +80,9 @@ where
                     let fut = conn
                         .inspect(move |_| {
                             drop(cancel_tx);
-                            trace!("connection complete")
+                            println!("connection complete")
                         })
-                        .map_err(|e| debug!("connection error: {}", e))
+                        .map_err(|e| println!("connection error: {}", e))
                         .select2(rx)
                         .then(|res| match res {
                             Ok(Either::A(((), _))) |
@@ -94,7 +94,7 @@ where
                                 // mpsc has been dropped, hopefully polling
                                 // the connection some more should start shutdown
                                 // and then close
-                                trace!("send_request dropped, starting conn shutdown");
+                                println!("send_request dropped, starting conn shutdown");
                                 Either::B(conn)
                             }
                             Err(Either::B((never, _))) => match never {},
@@ -108,7 +108,7 @@ where
                         Ok(Async::NotReady) => return Ok(Async::NotReady),
                         Err(err) => {
                             return if err.reason() == Some(::h2::Reason::NO_ERROR) {
-                                trace!("connection gracefully shutdown");
+                                println!("connection gracefully shutdown");
                                 Ok(Async::Ready(Dispatched::Shutdown))
                             } else {
                                 Err(::Error::new_h2(err))
@@ -119,7 +119,7 @@ where
                         Ok(Async::Ready(Some((req, cb)))) => {
                             // check that future hasn't been canceled already
                             if cb.is_canceled() {
-                                trace!("request callback is canceled");
+                                println!("request callback is canceled");
                                 continue;
                             }
                             let (head, body) = req.into_parts();
@@ -132,14 +132,14 @@ where
                             let (fut, body_tx) = match tx.send_request(req, eos) {
                                 Ok(ok) => ok,
                                 Err(err) => {
-                                    debug!("client send request error: {}", err);
+                                    println!("client send request error: {}", err);
                                     cb.send(Err((::Error::new_h2(err), None)));
                                     continue;
                                 }
                             };
                             if !eos {
                                 let mut pipe = PipeToSendStream::new(body, body_tx)
-                                    .map_err(|e| debug!("client request body error: {}", e));
+                                    .map_err(|e| println!("client request body error: {}", e));
 
                                 // eagerly see if the body pipe is ready and
                                 // can thus skip allocating in the executor
@@ -166,7 +166,7 @@ where
                                             Ok(res)
                                         },
                                         Err(err) => {
-                                            debug!("client response error: {}", err);
+                                            println!("client response error: {}", err);
                                             Err((::Error::new_h2(err), None))
                                         }
                                     }
@@ -180,14 +180,14 @@ where
                                 Ok(Async::Ready(never)) => match never {},
                                 Ok(Async::NotReady) => return Ok(Async::NotReady),
                                 Err(_conn_is_eof) => {
-                                    trace!("connection task is closed, closing dispatch task");
+                                    println!("connection task is closed, closing dispatch task");
                                     return Ok(Async::Ready(Dispatched::Shutdown));
                                 }
                             }
                         },
 
                         Ok(Async::Ready(None)) => {
-                            trace!("client::dispatch::Sender dropped");
+                            println!("client::dispatch::Sender dropped");
                             return Ok(Async::Ready(Dispatched::Shutdown));
                         },
                         Err(never) => match never {},

@@ -156,7 +156,7 @@ impl<T: Poolable> Pool<T> {
                     };
                     Some(connecting)
                 } else {
-                    trace!("HTTP/2 connecting already in progress for {:?}", key);
+                    println!("HTTP/2 connecting already in progress for {:?}", key);
                     None
                 };
             }
@@ -238,7 +238,7 @@ impl<T: Poolable> Pool<T> {
     }
 
     fn reuse(&self, key: &Key, value: T) -> Pooled<T> {
-        debug!("reuse idle connection for {:?}", key);
+        println!("reuse idle connection for {:?}", key);
         // TODO: unhack this
         // In Pool::pooled(), which is used for inserting brand new connections,
         // there's some code that adjusts the pool reference taken depending
@@ -275,7 +275,7 @@ impl<'a, T: Poolable + 'a> IdlePopper<'a, T> {
             // If the connection has been closed, or is older than our idle
             // timeout, simply drop it and keep looking...
             if !entry.value.is_open() {
-                trace!("removing closed connection for {:?}", self.key);
+                println!("removing closed connection for {:?}", self.key);
                 continue;
             }
             // TODO: Actually, since the `idle` list is pushed to the end always,
@@ -285,7 +285,7 @@ impl<'a, T: Poolable + 'a> IdlePopper<'a, T> {
             // In that case, we could just break out of the loop and drop the
             // whole list...
             if expiration.expires(entry.idle_at) {
-                trace!("removing expired connection for {:?}", self.key);
+                println!("removing expired connection for {:?}", self.key);
                 continue;
             }
 
@@ -315,10 +315,10 @@ impl<'a, T: Poolable + 'a> IdlePopper<'a, T> {
 impl<T: Poolable> PoolInner<T> {
     fn put(&mut self, key: Key, value: T, __pool_ref: &Arc<Mutex<PoolInner<T>>>) {
         if value.can_share() && self.idle.contains_key(&key) {
-            trace!("put; existing idle HTTP/2 connection for {:?}", key);
+            println!("put; existing idle HTTP/2 connection for {:?}", key);
             return;
         }
-        trace!("put; add idle connection for {:?}", key);
+        println!("put; add idle connection for {:?}", key);
         let mut remove_waiters = false;
         let mut value = Some(value);
         if let Some(waiters) = self.waiters.get_mut(&key) {
@@ -346,7 +346,7 @@ impl<T: Poolable> PoolInner<T> {
                     }
                 }
 
-                trace!("put; removing canceled waiter for {:?}", key);
+                println!("put; removing canceled waiter for {:?}", key);
             }
             remove_waiters = waiters.is_empty();
         }
@@ -363,11 +363,11 @@ impl<T: Poolable> PoolInner<T> {
                         .entry(key.clone())
                         .or_insert(Vec::new());
                     if self.max_idle_per_host <= idle_list.len() {
-                        trace!("max idle per host for {:?}, dropping connection", key);
+                        println!("max idle per host for {:?}, dropping connection", key);
                         return;
                     }
 
-                    debug!("pooling idle connection for {:?}", key);
+                    println!("pooling idle connection for {:?}", key);
                     idle_list.push(Idle {
                         value: value,
                         idle_at: Instant::now(),
@@ -379,7 +379,7 @@ impl<T: Poolable> PoolInner<T> {
                     self.spawn_idle_interval(__pool_ref);
                 }
             }
-            None => trace!("put; found waiter for {:?}", key),
+            None => println!("put; found waiter for {:?}", key),
         }
     }
 
@@ -459,11 +459,11 @@ impl<T: Poolable> PoolInner<T> {
         self.idle.retain(|key, values| {
             values.retain(|entry| {
                 if !entry.value.is_open() {
-                    trace!("idle interval evicting closed for {:?}", key);
+                    println!("idle interval evicting closed for {:?}", key);
                     return false;
                 }
                 if now - entry.idle_at > dur {
-                    trace!("idle interval evicting expired for {:?}", key);
+                    println!("idle interval evicting expired for {:?}", key);
                     return false;
                 }
 
@@ -539,7 +539,7 @@ impl<T: Poolable> Drop for Pooled<T> {
                     inner.put(self.key.clone(), value, &pool);
                 }
             } else if !value.can_share() {
-                trace!("pool dropped, dropping pooled ({:?})", self.key);
+                println!("pool dropped, dropping pooled ({:?})", self.key);
             }
             // Ver::Http2 is already in the Pool (or dead), so we wouldn't
             // have an actual reference to the Pool.
@@ -597,7 +597,7 @@ impl<T: Poolable> Checkout<T> {
             let expiration = Expiration::new(inner.timeout);
             let maybe_entry = inner.idle.get_mut(&self.key)
                 .and_then(|list| {
-                    trace!("take? {:?}: expiration = {:?}", self.key, expiration.0);
+                    println!("take? {:?}: expiration = {:?}", self.key, expiration.0);
                     // A block to end the mutable borrow on list,
                     // so the map below can check is_empty()
                     {
@@ -625,7 +625,7 @@ impl<T: Poolable> Checkout<T> {
                 let (tx, mut rx) = oneshot::channel();
                 let _ = rx.poll(); // park this task
 
-                trace!("checkout waiting for idle connection: {:?}", self.key);
+                println!("checkout waiting for idle connection: {:?}", self.key);
                 inner
                     .waiters
                     .entry(self.key.clone())
@@ -664,7 +664,7 @@ impl<T: Poolable> Future for Checkout<T> {
 impl<T> Drop for Checkout<T> {
     fn drop(&mut self) {
         if self.waiter.take().is_some() {
-            trace!("checkout dropped for {:?}", self.key);
+            println!("checkout dropped for {:?}", self.key);
             if let Some(Ok(mut inner)) = self.pool.inner.as_ref().map(|i| i.lock()) {
                 inner.clean_waiters(&self.key);
             }
@@ -740,18 +740,18 @@ impl<T: Poolable + 'static> Future for IdleInterval<T> {
                 Ok(Async::Ready(n)) => match n {},
                 Ok(Async::NotReady) => (),
                 Err(_canceled) => {
-                    trace!("pool closed, canceling idle interval");
+                    println!("pool closed, canceling idle interval");
                     return Ok(Async::Ready(()));
                 }
             }
 
             try_ready!(self.interval.poll().map_err(|err| {
-                error!("idle interval timer error: {}", err);
+                println!("idle interval timer error: {}", err);
             }));
 
             if let Some(inner) = self.pool.upgrade() {
                 if let Ok(mut inner) = inner.lock() {
-                    trace!("idle interval checking for expired");
+                    println!("idle interval checking for expired");
                     inner.clear_expired();
                     continue;
                 }

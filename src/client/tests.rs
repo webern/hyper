@@ -179,7 +179,7 @@ fn checkout_win_allows_connect_future_to_be_pooled() {
             if client.pool.idle_count(&key) == 0 {
                 tick_cnt += 1;
                 assert!(tick_cnt < 10, "ticked too many times waiting for idle");
-                trace!("no idle yet; tick count: {}", tick_cnt);
+                println!("no idle yet; tick count: {}", tick_cnt);
                 ::futures::task::current().notify();
                 Ok(Async::NotReady)
             } else {

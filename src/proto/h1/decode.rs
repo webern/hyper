@@ -94,7 +94,7 @@ impl Decoder {
     }
 
     pub fn decode<R: MemRead>(&mut self, body: &mut R) -> Poll<Bytes, io::Error> {
-        trace!("decode; state={:?}", self.kind);
+        println!("decode; state={:?}", self.kind);
         match self.kind {
             Length(ref mut remaining) => {
                 if *remaining == 0 {
@@ -119,7 +119,7 @@ impl Decoder {
                     // advances the chunked state
                     *state = try_ready!(state.step(body, size, &mut buf));
                     if *state == ChunkedState::End {
-                        trace!("end of chunked");
+                        println!("end of chunked");
                         return Ok(Async::Ready(Bytes::new()));
                     }
                     if let Some(buf) = buf {
@@ -183,7 +183,7 @@ impl ChunkedState {
         }
     }
     fn read_size<R: MemRead>(rdr: &mut R, size: &mut u64) -> Poll<ChunkedState, io::Error> {
-        trace!("Read chunk hex size");
+        println!("Read chunk hex size");
         let radix = 16;
         match byte!(rdr) {
             b @ b'0'..=b'9' => {
@@ -209,7 +209,7 @@ impl ChunkedState {
         Ok(Async::Ready(ChunkedState::Size))
     }
     fn read_size_lws<R: MemRead>(rdr: &mut R) -> Poll<ChunkedState, io::Error> {
-        trace!("read_size_lws");
+        println!("read_size_lws");
         match byte!(rdr) {
             // LWS can follow the chunk size, but no more digits can come
             b'\t' | b' ' => Ok(Async::Ready(ChunkedState::SizeLws)),
@@ -222,20 +222,20 @@ impl ChunkedState {
         }
     }
     fn read_extension<R: MemRead>(rdr: &mut R) -> Poll<ChunkedState, io::Error> {
-        trace!("read_extension");
+        println!("read_extension");
         match byte!(rdr) {
             b'\r' => Ok(Async::Ready(ChunkedState::SizeLf)),
             _ => Ok(Async::Ready(ChunkedState::Extension)), // no supported extensions
         }
     }
     fn read_size_lf<R: MemRead>(rdr: &mut R, size: u64) -> Poll<ChunkedState, io::Error> {
-        trace!("Chunk size is {:?}", size);
+        println!("Chunk size is {:?}", size);
         match byte!(rdr) {
             b'\n' => {
                 if size == 0 {
                     Ok(Async::Ready(ChunkedState::EndCr))
                 } else {
-                    debug!("incoming chunked header: {0:#X} ({0} bytes)", size);
+                    println!("incoming chunked header: {0:#X} ({0} bytes)", size);
                     Ok(Async::Ready(ChunkedState::Body))
                 }
             },
@@ -247,7 +247,7 @@ impl ChunkedState {
                           rem: &mut u64,
                           buf: &mut Option<Bytes>)
                           -> Poll<ChunkedState, io::Error> {
-        trace!("Chunked read, remaining={:?}", rem);
+        println!("Chunked read, remaining={:?}", rem);
 
         // cap remaining bytes at the max capacity of usize
         let rem_cap = match *rem {

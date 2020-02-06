@@ -146,20 +146,20 @@ where
                 req_method: ctx.req_method,
             })? {
                 Some(msg) => {
-                    debug!("parsed {} headers", msg.head.headers.len());
+                    println!("parsed {} headers", msg.head.headers.len());
                     return Ok(Async::Ready(msg))
                 },
                 None => {
                     let max = self.read_buf_strategy.max();
                     if self.read_buf.len() >= max {
-                        debug!("max_buf_size ({}) reached, closing", max);
+                        println!("max_buf_size ({}) reached, closing", max);
                         return Err(::Error::new_too_large());
                     }
                 },
             }
             match try_ready!(self.read_from_io().map_err(::Error::new_io)) {
                 0 => {
-                    trace!("parse eof");
+                    println!("parse eof");
                     return Err(::Error::new_incomplete());
                 }
                 _ => {},
@@ -176,7 +176,7 @@ where
         self.io.read_buf(&mut self.read_buf).map(|ok| {
             match ok {
                 Async::Ready(n) => {
-                    debug!("read {} bytes", n);
+                    println!("read {} bytes", n);
                     self.read_buf_strategy.record(n);
                     Async::Ready(n)
                 },
@@ -212,11 +212,11 @@ where
             }
             loop {
                 let n = try_ready!(self.io.write_buf(&mut self.write_buf.auto()));
-                debug!("flushed {} bytes", n);
+                println!("flushed {} bytes", n);
                 if self.write_buf.remaining() == 0 {
                     break;
                 } else if n == 0 {
-                    trace!("write returned zero, but {} bytes remaining", self.write_buf.remaining());
+                    println!("write returned zero, but {} bytes remaining", self.write_buf.remaining());
                     return Err(io::ErrorKind::WriteZero.into())
                 }
             }
@@ -232,13 +232,13 @@ where
     fn flush_flattened(&mut self) -> Poll<(), io::Error> {
         loop {
             let n = try_nb!(self.io.write(self.write_buf.headers.bytes()));
-            debug!("flushed {} bytes", n);
+            println!("flushed {} bytes", n);
             self.write_buf.headers.advance(n);
             if self.write_buf.headers.remaining() == 0 {
                 self.write_buf.headers.reset();
                 break;
             } else if n == 0 {
-                trace!("write returned zero, but {} bytes remaining", self.write_buf.remaining());
+                println!("write returned zero, but {} bytes remaining", self.write_buf.remaining());
                 return Err(io::ErrorKind::WriteZero.into())
             }
         }
@@ -568,7 +568,7 @@ impl<'a, B: Buf + 'a> Drop for WriteBufAuto<'a, B> {
             if self.bytes_vec_called.get() {
                 self.inner.strategy = WriteStrategy::Queue;
             } else if self.bytes_called.get() {
-                trace!("detected no usage of vectored write, flattening");
+                println!("detected no usage of vectored write, flattening");
                 self.inner.strategy = WriteStrategy::Flatten;
                 self.inner.headers.bytes.put(&mut self.inner.queue);
             }

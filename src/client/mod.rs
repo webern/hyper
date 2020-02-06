@@ -278,7 +278,7 @@ where C: Connect + Sync + 'static,
                         return Err(reason);
                     }
 
-                    trace!("unstarted request canceled, trying again (reason={:?})", reason);
+                    println!("unstarted request canceled, trying again (reason={:?})", reason);
                     *req.uri_mut() = uri.clone();
                     send_fut = client.send_request(req, pool_key.clone());
                 }
@@ -319,7 +319,7 @@ where C: Connect + Sync + 'static,
                     origin_form(req.uri_mut());
                 };
             } else if req.method() == &Method::CONNECT {
-                debug!("client does not support CONNECT requests over HTTP2");
+                println!("client does not support CONNECT requests over HTTP2");
                 return Either::A(future::err(ClientError::Normal(::Error::new_user_unsupported_request_method())));
             }
 
@@ -438,7 +438,7 @@ where C: Connect + Sync + 'static,
                                 // the Pool for us...
                             })
                             .map_err(|err| {
-                                trace!("background connect error: {}", err);
+                                println!("background connect error: {}", err);
                             });
                         // An execute error here isn't important, we're just trying
                         // to prevent a waste of a socket...
@@ -511,7 +511,7 @@ where C: Connect + Sync + 'static,
                     let connecting = if connected.alpn == Alpn::H2 && !is_ver_h2 {
                         match connecting.alpn_h2(&pool) {
                             Some(lock) => {
-                                trace!("ALPN negotiated h2, updating pool");
+                                println!("ALPN negotiated h2, updating pool");
                                 lock
                             },
                             None => {
@@ -529,9 +529,9 @@ where C: Connect + Sync + 'static,
                         .http2_only(is_h2)
                         .handshake(io)
                         .and_then(move |(tx, conn)| {
-                            trace!("handshake complete, spawning background dispatcher task");
+                            println!("handshake complete, spawning background dispatcher task");
                             let bg = executor.execute(conn.map_err(|e| {
-                                debug!("client connection error: {}", e)
+                                println!("client connection error: {}", e)
                             }));
 
                             // This task is critical, so an execute error
@@ -818,7 +818,7 @@ fn extract_domain(uri: &mut Uri, is_http_connect: bool) -> ::Result<String> {
             Ok(format!("{}://{}", scheme, auth))
         },
         _ => {
-            debug!("Client requires absolute-form URIs, received: {:?}", uri);
+            println!("Client requires absolute-form URIs, received: {:?}", uri);
             Err(::Error::new_user_absolute_uri_required())
         }
     }

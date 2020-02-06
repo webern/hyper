@@ -232,7 +232,7 @@ where
     type Future = HttpConnecting<R>;
 
     fn connect(&self, dst: Destination) -> Self::Future {
-        trace!(
+        println!(
             "Http::connect; scheme={}, host={}, port={:?}",
             dst.scheme(),
             dst.host(),
@@ -483,22 +483,22 @@ impl ConnectingTcpRemote {
             if let Some(ref mut current) = self.current {
                 match current.poll() {
                     Ok(Async::Ready(tcp)) => {
-                        debug!("connected to {:?}", tcp.peer_addr().ok());
+                        println!("connected to {:?}", tcp.peer_addr().ok());
                         return Ok(Async::Ready(tcp));
                     },
                     Ok(Async::NotReady) => return Ok(Async::NotReady),
                     Err(e) => {
-                        trace!("connect error {:?}", e);
+                        println!("connect error {:?}", e);
                         err = Some(e);
                         if let Some(addr) = self.addrs.next() {
-                            debug!("connecting to {}", addr);
+                            println!("connecting to {}", addr);
                             *current = connect(&addr, local_addr, handle, reuse_address)?;
                             continue;
                         }
                     }
                 }
             } else if let Some(addr) = self.addrs.next() {
-                debug!("connecting to {}", addr);
+                println!("connecting to {}", addr);
                 self.current = Some(connect(&addr, local_addr, handle, reuse_address)?);
                 continue;
             }

@@ -221,7 +221,7 @@ impl<T, U> Callback<T, U> {
                 Ok(Async::NotReady) => {
                     // check if the callback is canceled
                     try_ready!(cb.as_mut().unwrap().poll_cancel());
-                    trace!("send_when canceled");
+                    println!("send_when canceled");
                     Ok(().into())
                 },
                 Err(err) => {

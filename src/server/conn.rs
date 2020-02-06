@@ -579,7 +579,7 @@ where
     }
 
     fn upgrade_h2(&mut self) {
-        trace!("Trying to upgrade connection to h2");
+        println!("Trying to upgrade connection to h2");
         let conn = self.conn.take();
 
         let (io, read_buf, dispatch) = match conn.unwrap() {
@@ -708,7 +708,7 @@ where
             Ok(Async::Ready(())) => (),
             Ok(Async::NotReady) => return Ok(Async::NotReady),
             Err(e) => {
-                trace!("make_service closed");
+                println!("make_service closed");
                 return Err(::Error::new_user_make_service(e));
             }
         }
@@ -879,7 +879,7 @@ pub(crate) mod spawn_all {
                             .poll()
                             .map_err(|err| {
                                 let err = ::Error::new_user_make_service(err);
-                                debug!("connecting error: {}", err);
+                                println!("connecting error: {}", err);
                             }));
                         let connected = watcher.watch(conn.with_upgrades());
                         State::Connected(connected)
@@ -888,7 +888,7 @@ pub(crate) mod spawn_all {
                         return future
                             .poll()
                             .map_err(|err| {
-                                debug!("connection error: {}", err);
+                                println!("connection error: {}", err);
                             });
                     }
                 };

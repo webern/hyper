@@ -234,7 +234,7 @@ where
                 }))
             },
             Err(_req) => {
-                debug!("connection was not ready");
+                println!("connection was not ready");
                 let err = ::Error::new_canceled().with("connection was not ready");
                 Either::B(future::err(err))
             }
@@ -261,7 +261,7 @@ where
                 }))
             },
             Err(req) => {
-                debug!("connection was not ready");
+                println!("connection was not ready");
                 let err = ::Error::new_canceled().with("connection was not ready");
                 Either::B(future::err((err, Some(req))))
             }
@@ -321,7 +321,7 @@ where
                 }))
             },
             Err(req) => {
-                debug!("connection was not ready");
+                println!("connection was not ready");
                 let err = ::Error::new_canceled().with("connection was not ready");
                 Either::B(future::err((err, Some(req))))
             }
@@ -535,7 +535,7 @@ impl Builder {
         T: AsyncRead + AsyncWrite + Send + 'static,
         B: Payload + 'static,
     {
-        trace!("client handshake HTTP/{}", if self.http2 { 2 } else { 1 });
+        println!("client handshake HTTP/{}", if self.http2 { 2 } else { 1 });
         Handshake {
             builder: self.clone(),
             io: Some(io),

@@ -131,7 +131,7 @@ where I: AsyncRead + AsyncWrite,
 
     pub fn read_head(&mut self) -> Poll<Option<(MessageHead<T::Incoming>, DecodedLength, bool)>, ::Error> {
         debug_assert!(self.can_read_head());
-        trace!("Conn::read_head");
+        println!("Conn::read_head");
 
         let msg = match self.io.parse::<T>(ParseContext {
             cached_headers: &mut self.state.cached_headers,
@@ -145,7 +145,7 @@ where I: AsyncRead + AsyncWrite,
         // Note: don't deconstruct `msg` into local variables, it appears
         // the optimizer doesn't remove the extra copies.
 
-        debug!("incoming body is {}", msg.decode);
+        println!("incoming body is {}", msg.decode);
 
         self.state.busy();
         self.state.keep_alive &= msg.keep_alive;
@@ -178,11 +178,11 @@ where I: AsyncRead + AsyncWrite,
         let was_mid_parse = e.is_parse() || !self.io.read_buf().is_empty();
         if was_mid_parse || must_error {
             // We check if the buf contains the h2 Preface
-            debug!("parse error ({}) with {} bytes", e, self.io.read_buf().len());
+            println!("parse error ({}) with {} bytes", e, self.io.read_buf().len());
             self.on_parse_error(e)
                 .map(|()| Async::NotReady)
         } else {
-            debug!("read eof");
+            println!("read eof");
             Ok(Async::Ready(None))
         }
     }
@@ -195,14 +195,14 @@ where I: AsyncRead + AsyncWrite,
                 match decoder.decode(&mut self.io) {
                     Ok(Async::Ready(slice)) => {
                         let (reading, chunk) = if decoder.is_eof() {
-                            debug!("incoming body completed");
+                            println!("incoming body completed");
                             (Reading::KeepAlive, if !slice.is_empty() {
                                 Some(Chunk::from(slice))
                             } else {
                                 None
                             })
                         } else if slice.is_empty() {
-                            error!("decode stream unexpectedly ended");
+                            println!("decode stream unexpectedly ended");
                             // This should be unreachable, since all 3 decoders
                             // either set eof=true or return an Err when reading
                             // an empty slice...
@@ -214,7 +214,7 @@ where I: AsyncRead + AsyncWrite,
                     },
                     Ok(Async::NotReady) => return Ok(Async::NotReady),
                     Err(e) => {
-                        debug!("decode stream error: {}", e);
+                        println!("decode stream error: {}", e);
                         (Reading::Closed, Err(e))
                     },
                 }
@@ -260,7 +260,7 @@ where I: AsyncRead + AsyncWrite,
         debug_assert!(T::is_client());
 
         if !self.io.read_buf().is_empty() {
-            debug!("received an unexpected {} bytes", self.io.read_buf().len());
+            println!("received an unexpected {} bytes", self.io.read_buf().len());
             return Err(::Error::new_unexpected_message());
         }
 
@@ -268,10 +268,10 @@ where I: AsyncRead + AsyncWrite,
 
         if num_read == 0 {
             let ret = if self.should_error_on_eof() {
-                trace!("found unexpected EOF on busy connection: {:?}", self.state);
+                println!("found unexpected EOF on busy connection: {:?}", self.state);
                 Err(::Error::new_incomplete())
             } else {
-                trace!("found EOF on idle connection, closing");
+                println!("found EOF on idle connection, closing");
                 Ok(Async::Ready(()))
             };
 
@@ -280,7 +280,7 @@ where I: AsyncRead + AsyncWrite,
             return ret;
         }
 
-        debug!("received unexpected {} bytes on an idle connection", num_read);
+        println!("received unexpected {} bytes on an idle connection", num_read);
         Err(::Error::new_unexpected_message())
     }
 
@@ -295,7 +295,7 @@ where I: AsyncRead + AsyncWrite,
         let num_read = try_ready!(self.force_io_read().map_err(::Error::new_io));
 
         if num_read == 0 {
-            trace!("found unexpected EOF on busy connection: {:?}", self.state);
+            println!("found unexpected EOF on busy connection: {:?}", self.state);
             self.state.close_read();
             Err(::Error::new_incomplete())
         } else {
@@ -305,7 +305,7 @@ where I: AsyncRead + AsyncWrite,
 
     fn force_io_read(&mut self) -> Poll<usize, io::Error> {
          self.io.read_from_io().map_err(|e| {
-            trace!("force_io_read; io error = {:?}", e);
+            println!("force_io_read; io error = {:?}", e);
             self.state.close();
             e
          })
@@ -339,11 +339,11 @@ where I: AsyncRead + AsyncWrite,
                 match self.io.read_from_io() {
                     Ok(Async::Ready(_)) => (),
                     Ok(Async::NotReady) => {
-                        trace!("maybe_notify; read_from_io blocked");
+                        println!("maybe_notify; read_from_io blocked");
                         return
                     },
                     Err(e) => {
-                        trace!("maybe_notify; read_from_io error: {}", e);
+                        println!("maybe_notify; read_from_io error: {}", e);
                         self.state.close();
                     }
                 }
@@ -589,7 +589,7 @@ where I: AsyncRead + AsyncWrite,
     pub fn flush(&mut self) -> Poll<(), io::Error> {
         try_ready!(self.io.flush());
         self.try_keep_alive();
-        trace!("flushed({}): {:?}", T::LOG, self.state);
+        println!("flushed({}): {:?}", T::LOG, self.state);
         Ok(Async::Ready(()))
     }
 
@@ -597,11 +597,11 @@ where I: AsyncRead + AsyncWrite,
         match self.io.io_mut().shutdown() {
             Ok(Async::NotReady) => Ok(Async::NotReady),
             Ok(Async::Ready(())) => {
-                trace!("shut down IO complete");
+                println!("shut down IO complete");
                 Ok(Async::Ready(()))
             }
             Err(e) => {
-                debug!("error shutting down IO: {}", e);
+                println!("error shutting down IO: {}", e);
                 Err(e)
             }
         }
@@ -632,7 +632,7 @@ where I: AsyncRead + AsyncWrite,
     }
 
     pub(super) fn on_upgrade(&mut self) -> ::upgrade::OnUpgrade {
-        trace!("{}: prepare possible HTTP upgrade", T::LOG);
+        println!("{}: prepare possible HTTP upgrade", T::LOG);
         self.state.prepare_upgrade()
     }
 
@@ -730,7 +730,7 @@ impl fmt::Debug for Writing {
 impl ::std::ops::BitAndAssign<bool> for KA {
     fn bitand_assign(&mut self, enabled: bool) {
         if !enabled {
-            trace!("remote disabling keep-alive");
+            println!("remote disabling keep-alive");
             *self = KA::Disabled;
         }
     }
@@ -769,20 +769,20 @@ impl KA {
 
 impl State {
     fn close(&mut self) {
-        trace!("State::close()");
+        println!("State::close()");
         self.reading = Reading::Closed;
         self.writing = Writing::Closed;
         self.keep_alive.disable();
     }
 
     fn close_read(&mut self) {
-        trace!("State::close_read()");
+        println!("State::close_read()");
         self.reading = Reading::Closed;
         self.keep_alive.disable();
     }
 
     fn close_write(&mut self) {
-        trace!("State::close_write()");
+        println!("State::close_write()");
         self.writing = Writing::Closed;
         self.keep_alive.disable();
     }
@@ -801,7 +801,7 @@ impl State {
                 if let KA::Busy = self.keep_alive.status() {
                     self.idle::<T>();
                 } else {
-                    trace!("try_keep_alive({}): could keep-alive, but status = {:?}", T::LOG, self.keep_alive);
+                    println!("try_keep_alive({}): could keep-alive, but status = {:?}", T::LOG, self.keep_alive);
                     self.close();
                 }
             },

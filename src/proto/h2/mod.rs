@@ -93,13 +93,13 @@ where
 
     fn on_user_err(&mut self, err: S::Error) -> ::Error {
         let err = ::Error::new_user_body(err);
-        debug!("send body user stream error: {}", err);
+        println!("send body user stream error: {}", err);
         self.body_tx.send_reset(err.h2_reason());
         err
     }
 
     fn send_eos_frame(&mut self) -> ::Result<()> {
-        trace!("send body eos");
+        println!("send body eos");
         self.body_tx
             .send_data(SendBuf(None), true)
             .map_err(::Error::new_body_write)
@@ -133,7 +133,7 @@ where
                     if let Async::Ready(reason) =
                         self.body_tx.poll_reset().map_err(::Error::new_body_write)?
                     {
-                        debug!("stream received RST_STREAM: {:?}", reason);
+                        println!("stream received RST_STREAM: {:?}", reason);
                         return Err(::Error::new_body_write(::h2::Error::from(reason)));
                     }
                 }
@@ -141,7 +141,7 @@ where
                 match try_ready!(self.stream.poll_data().map_err(|e| self.on_user_err(e))) {
                     Some(chunk) => {
                         let is_eos = self.stream.is_end_stream();
-                        trace!(
+                        println!(
                             "send body chunk: {} bytes, eos={}",
                             chunk.remaining(),
                             is_eos,
@@ -171,7 +171,7 @@ where
                 if let Async::Ready(reason) =
                     self.body_tx.poll_reset().map_err(|e| ::Error::new_body_write(e))?
                 {
-                    debug!("stream received RST_STREAM: {:?}", reason);
+                    println!("stream received RST_STREAM: {:?}", reason);
                     return Err(::Error::new_body_write(::h2::Error::from(reason)));
                 }
 

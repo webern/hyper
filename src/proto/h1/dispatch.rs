@@ -144,7 +144,7 @@ where
             }
         }
 
-        trace!("poll_loop yielding (self = {:p})", self);
+        println!("poll_loop yielding (self = {:p})", self);
 
         match self.yield_now.poll_yield() {
             Ok(Async::NotReady) => Ok(Async::NotReady),
@@ -172,7 +172,7 @@ where
                         Err(_canceled) => {
                             // user doesn't care about the body
                             // so we should stop reading
-                            trace!("body receiver dropped before eof, closing");
+                            println!("body receiver dropped before eof, closing");
                             self.conn.close_read();
                             return Ok(Async::Ready(()));
                         }
@@ -185,7 +185,7 @@ where
                                 },
                                 Err(_canceled) => {
                                     if self.conn.can_read_body() {
-                                        trace!("body receiver dropped before eof, closing");
+                                        println!("body receiver dropped before eof, closing");
                                         self.conn.close_read();
                                     }
                                 }
@@ -217,7 +217,7 @@ where
             Ok(Async::Ready(())) => (),
             Ok(Async::NotReady) => return Ok(Async::NotReady), // service might not be ready
             Err(()) => {
-                trace!("dispatch no longer receiving messages");
+                println!("dispatch no longer receiving messages");
                 self.close();
                 return Ok(Async::Ready(()));
             }
@@ -245,7 +245,7 @@ where
             }
             Ok(Async::NotReady) => Ok(Async::NotReady),
             Err(err) => {
-                debug!("read_head error: {}", err);
+                println!("read_head error: {}", err);
                 self.dispatch.recv_msg(Err(err))?;
                 // if here, the dispatcher gave the user the error
                 // somewhere else. we still need to shutdown, but
@@ -288,7 +288,7 @@ where
                 try_ready!(self.poll_flush());
             } else if let Some(mut body) = self.body_rx.take() {
                 if !self.conn.can_write_body() {
-                    trace!(
+                    println!(
                         "no more write body allowed, user body is_end_stream = {}",
                         body.is_end_stream(),
                     );
@@ -299,7 +299,7 @@ where
                         let eos = body.is_end_stream();
                         if eos {
                             if chunk.remaining() == 0 {
-                                trace!("discarding empty chunk");
+                                println!("discarding empty chunk");
                                 self.conn.end_body();
                             } else {
                                 self.conn.write_body_and_end(chunk);
@@ -307,7 +307,7 @@ where
                         } else {
                             self.body_rx = Some(body);
                             if chunk.remaining() == 0 {
-                                trace!("discarding empty chunk");
+                                println!("discarding empty chunk");
                                 continue;
                             }
                             self.conn.write_body(chunk);
@@ -329,7 +329,7 @@ where
 
     fn poll_flush(&mut self) -> Poll<(), ::Error> {
         self.conn.flush().map_err(|err| {
-            debug!("error writing: {}", err);
+            println!("error writing: {}", err);
             ::Error::new_body_write(err)
         })
     }
@@ -439,7 +439,7 @@ where
             self.service.poll_ready()
                 .map_err(|_e| {
                     // FIXME: return error value.
-                    trace!("service closed");
+                    println!("service closed");
                 })
         }
     }
@@ -476,7 +476,7 @@ where
                 // check that future hasn't been canceled already
                 match cb.poll_cancel().expect("poll_cancel cannot error") {
                     Async::Ready(()) => {
-                        trace!("request canceled");
+                        println!("request canceled");
                         Ok(Async::Ready(None))
                     },
                     Async::NotReady => {
@@ -492,7 +492,7 @@ where
                 }
             },
             Ok(Async::Ready(None)) => {
-                trace!("client tx closed");
+                println!("client tx closed");
                 // user has dropped sender handle
                 Ok(Async::Ready(None))
             },
@@ -523,7 +523,7 @@ where
                     let _ = cb.send(Err((err, None)));
                     Ok(())
                 } else if let Ok(Async::Ready(Some((req, cb)))) = self.rx.poll() {
-                    trace!("canceling queued request with connection error: {}", err);
+                    println!("canceling queued request with connection error: {}", err);
                     // in this case, the message was never even started, so it's safe to tell
                     // the user that the request was completely canceled
                     let _ = cb.send(Err((::Error::new_canceled().with(err), Some(req))));
@@ -539,7 +539,7 @@ where
         match self.callback {
             Some(ref mut cb) => match cb.poll_cancel() {
                 Ok(Async::Ready(())) => {
-                    trace!("callback receiver has dropped");
+                    println!("callback receiver has dropped");
                     Err(())
                 },
                 Ok(Async::NotReady) => Ok(Async::Ready(())),

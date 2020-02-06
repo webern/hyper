@@ -208,7 +208,7 @@ impl Future for GaiBlocking {
     type Error = io::Error;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        debug!("resolving host={:?}", self.host);
+        println!("resolving host={:?}", self.host);
         (&*self.host, 0).to_socket_addrs()
             .map(|i| Async::Ready(IpAddrs { iter: i }))
     }

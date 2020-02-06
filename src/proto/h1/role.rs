@@ -87,12 +87,12 @@ impl Http1Transaction for Server {
         let mut headers_indices: [HeaderIndices; MAX_HEADERS] = unsafe { mem::uninitialized() };
         {
             let mut headers: [httparse::Header; MAX_HEADERS] = unsafe { mem::uninitialized() };
-            trace!("Request.parse([Header; {}], [u8; {}])", headers.len(), buf.len());
+            println!("Request.parse([Header; {}], [u8; {}])", headers.len(), buf.len());
             let mut req = httparse::Request::new(&mut headers);
             let bytes = buf.as_ref();
             match req.parse(bytes) {
                 Ok(httparse::Status::Complete(parsed_len)) => {
-                    trace!("Request.parse Complete({})", parsed_len);
+                    println!("Request.parse Complete({})", parsed_len);
                     len = parsed_len;
                     subject = RequestLine(
                         Method::from_bytes(req.method.unwrap().as_bytes())?,
@@ -163,7 +163,7 @@ impl Http1Transaction for Server {
                     // not the final encoding, and this is a Request, then it is
                     // mal-formed. A server should respond with 400 Bad Request.
                     if !is_http_11 {
-                        debug!("HTTP/1.0 cannot have Transfer-Encoding header");
+                        println!("HTTP/1.0 cannot have Transfer-Encoding header");
                         return Err(Parse::Header);
                     }
                     is_te = true;
@@ -181,7 +181,7 @@ impl Http1Transaction for Server {
                         .and_then(|s| s.parse().map_err(|_| Parse::Header))?;
                     if let Some(prev) = con_len {
                         if prev != len {
-                            debug!(
+                            println!(
                                 "multiple Content-Length headers with different values: [{}, {}]",
                                 prev,
                                 len,
@@ -220,7 +220,7 @@ impl Http1Transaction for Server {
         }
 
         if is_te && !is_te_chunked {
-            debug!("request with transfer-encoding header, but not chunked, bad request");
+            println!("request with transfer-encoding header, but not chunked, bad request");
             return Err(Parse::Header);
         }
 
@@ -240,7 +240,7 @@ impl Http1Transaction for Server {
     }
 
     fn encode(mut msg: Encode<Self::Outgoing>, mut dst: &mut Vec<u8>) -> ::Result<Encoder> {
-        trace!(
+        println!(
             "Server::encode status={:?}, body={:?}, req_method={:?}",
             msg.head.subject,
             msg.body,
@@ -510,7 +510,7 @@ impl Http1Transaction for Server {
         }
 
         if !Server::can_have_body(msg.req_method, msg.head.subject) {
-            trace!(
+            println!(
                 "server body forced to 0; method={:?}, status={:?}",
                 msg.req_method,
                 msg.head.subject
@@ -546,7 +546,7 @@ impl Http1Transaction for Server {
             _ => return None,
         };
 
-        debug!("sending automatic response ({}) for parse error", status);
+        println!("sending automatic response ({}) for parse error", status);
         let mut msg = MessageHead::default();
         msg.subject = status;
         Some(msg)
@@ -599,12 +599,12 @@ impl Http1Transaction for Client {
             let mut headers_indices: [HeaderIndices; MAX_HEADERS] = unsafe { mem::uninitialized() };
             let (len, status, version, headers_len) = {
                 let mut headers: [httparse::Header; MAX_HEADERS] = unsafe { mem::uninitialized() };
-                trace!("Response.parse([Header; {}], [u8; {}])", headers.len(), buf.len());
+                println!("Response.parse([Header; {}], [u8; {}])", headers.len(), buf.len());
                 let mut res = httparse::Response::new(&mut headers);
                 let bytes = buf.as_ref();
                 match res.parse(bytes)? {
                     httparse::Status::Complete(len) => {
-                        trace!("Response.parse Complete({})", len);
+                        println!("Response.parse Complete({})", len);
                         let status = StatusCode::from_u16(res.code.unwrap())?;
                         let version = if res.version.unwrap() == 1 {
                             Version::HTTP_11
@@ -667,7 +667,7 @@ impl Http1Transaction for Client {
     }
 
     fn encode(msg: Encode<Self::Outgoing>, dst: &mut Vec<u8>) -> ::Result<Encoder> {
-        trace!("Client::encode method={:?}, body={:?}", msg.head.subject.0, msg.body);
+        println!("Client::encode method={:?}, body={:?}", msg.head.subject.0, msg.body);
 
         *msg.req_method = Some(msg.head.subject.0.clone());
 
@@ -733,7 +733,7 @@ impl Client {
                 return Ok(Some((DecodedLength::ZERO, true)));
             },
             100..=199 => {
-                trace!("ignoring informational response: {}", inc.subject.as_u16());
+                println!("ignoring informational response: {}", inc.subject.as_u16());
                 return Ok(None);
             },
             204 |
@@ -749,7 +749,7 @@ impl Client {
             }
             Some(_) => {},
             None => {
-                trace!("Client::decoder is missing the Method");
+                println!("Client::decoder is missing the Method");
             }
         }
 
@@ -759,21 +759,21 @@ impl Client {
             // not the final encoding, and this is a Request, then it is
             // mal-formed. A server should respond with 400 Bad Request.
             if inc.version == Version::HTTP_10 {
-                debug!("HTTP/1.0 cannot have Transfer-Encoding header");
+                println!("HTTP/1.0 cannot have Transfer-Encoding header");
                 Err(Parse::Header)
             } else if headers::transfer_encoding_is_chunked(&inc.headers) {
                 Ok(Some((DecodedLength::CHUNKED, false)))
             } else {
-                trace!("not chunked, read till eof");
+                println!("not chunked, read till eof");
                 Ok(Some((DecodedLength::CHUNKED, false)))
             }
         } else if let Some(len) = headers::content_length_parse_all(&inc.headers) {
             Ok(Some((DecodedLength::checked_new(len)?, false)))
         } else if inc.headers.contains_key(header::CONTENT_LENGTH) {
-            debug!("illegal Content-Length header");
+            println!("illegal Content-Length header");
             Err(Parse::Header)
         } else {
-            trace!("neither Transfer-Encoding nor Content-Length");
+            println!("neither Transfer-Encoding nor Content-Length");
             Ok(Some((DecodedLength::CLOSE_DELIMITED, false)))
         }
     }
@@ -805,7 +805,7 @@ impl Client {
         if !can_chunked {
             // Chunked isn't legal, so if it is set, we need to remove it.
             if headers.remove(header::TRANSFER_ENCODING).is_some() {
-                trace!("removing illegal transfer-encoding header");
+                println!("removing illegal transfer-encoding header");
             }
 
             return if let Some(len) = existing_con_len {
@@ -916,7 +916,7 @@ fn set_content_length(headers: &mut HeaderMap, len: u64) -> Encoder {
                 // Uh oh, the user set `Content-Length` headers, but set bad ones.
                 // This would be an illegal message anyways, so let's try to repair
                 // with our known good length.
-                error!("user provided content-length header was invalid");
+                println!("user provided content-length header was invalid");
 
                 cl.insert(HeaderValue::from(len));
                 Encoder::length(len)
@@ -970,7 +970,7 @@ fn record_header_indices(
         for (header, indices) in (headers.iter().zip(indices.iter_mut())) {
             {
                 if header.name.len() >= (1 << 16) {
-                    debug!("header name larger than 64kb: {:?}", header.name);
+                    println!("header name larger than 64kb: {:?}", header.name);
                     return Err(::error::Parse::TooLarge);
                 }
                 let name_start = header.name.as_ptr() as usize - bytes_ptr;
